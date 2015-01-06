@@ -125,7 +125,6 @@ BigQuery.prototype.insert = function (data) {
     kind: "bigquery#tableDataInsertAllRequest",
     rows: data
   }).then(function (resp) {
-    console.log(resp);
     if (!resp.insertErrors || !resp.insertErrors.length) {
       return;
     }
