@@ -1,0 +1,24 @@
+{
+  "name": "big-query-stream",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bluebird": "^2.5.3",
+    "double-ended-queue": "^2.1.0-0",
+    "google-auth2-service-account": "0.0.3",
+    "inherits": "^2.0.1",
+    "node-uuid": "^1.4.2",
+    "readable-stream": "^1.0.33",
+    "request": "^2.51.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:AppGeo/big-query-stream.git"
+  }
+}
