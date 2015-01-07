@@ -103,7 +103,6 @@ BigQuery.prototype.auth = function () {
   });
 };
 BigQuery.prototype.post = function (url, body) {
-  console.log('post', body);
   var self = this;
   var opts = {
     url: url,
@@ -114,7 +113,6 @@ BigQuery.prototype.post = function (url, body) {
   return self.request(opts);
 };
 BigQuery.prototype.get = function (url, body) {
-  console.log('get', body);
   var self = this;
   var opts = {
     url: url,
