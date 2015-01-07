@@ -7,6 +7,7 @@ var Deque = require('double-ended-queue');
 var auth = Promise.promisify(require('google-auth2-service-account').auth);
 var scope = 'https://www.googleapis.com/auth/bigquery';
 var rawRequest = Promise.promisify(require('request'));
+var noms = require('noms').obj;
 var uuid = require('node-uuid');
 module.exports = BigQuery;
 inherits(BigQuery, Writable);
@@ -19,6 +20,12 @@ function BigQuery(key, email, project, dataset, table) {
   }
   this.iss = email;
   this.baseurl = 'https://www.googleapis.com/bigquery/v2/projects/' + project + '/datasets/' + dataset + '/tables/' + table + '/insertAll';
+  this.insertUrl = 'https://www.googleapis.com/bigquery/v2/projects/' + project + '/jobs';
+  this.queryurl = 'https://www.googleapis.com/bigquery/v2/projects/' + project + '/queries';
+  this.defaultDataset = {
+    projectId: project,
+    datasetId: dataset
+  };
   this.queue = new Deque();
 }
 BigQuery.prototype._request = function (opts) {
@@ -95,13 +102,24 @@ BigQuery.prototype.auth = function () {
     });
   });
 };
-BigQuery.prototype.post = function (body) {
+BigQuery.prototype.post = function (url, body) {
+  console.log('post', body);
   var self = this;
   var opts = {
-    url: this.baseurl,
+    url: url,
     body: body,
     json: true,
     method: 'POST'
+  };
+  return self.request(opts);
+};
+BigQuery.prototype.get = function (url, body) {
+  console.log('get', body);
+  var self = this;
+  var opts = {
+    url: url,
+    qs: body,
+    json:true
   };
   return self.request(opts);
 };
@@ -121,7 +139,7 @@ BigQuery.prototype._write = function (data, _, next) {
 };
 BigQuery.prototype.insert = function (data) {
   var self = this;
-  return this.post({
+  return this.post(this.baseurl, {
     kind: "bigquery#tableDataInsertAllRequest",
     rows: data
   }).then(function (resp) {
@@ -131,5 +149,53 @@ BigQuery.prototype.insert = function (data) {
     return self.insert(resp.insertErrors.map(function (error) {
       return data[error.index];
     }));
+  });
+};
+function fixRows(schema, rows) {
+  return rows.map(function (row) {
+    var out = {};
+    row.f.forEach(function (value, i) {
+      var val = value.v;
+      if (schema.fields[i].type === 'TIMESTAMP') {
+        val = new Date(parseFloat(val) * 1000);
+      }
+      out[schema.fields[i].name] = val;
+    });
+    return out;
+  });
+}
+BigQuery.prototype.query = function (query) {
+  var pageToken, queryUrl;
+  var maxResults = 100;
+  var initialBody = {
+    configuration: {
+      query: {
+        defaultDataset: this.defaultDataset,
+        query: query
+      }
+    }
+  };
+  var self = this;
+  return noms(function (next) {
+    var stream = this;
+    if (!queryUrl) {
+      return self.post(self.insertUrl, initialBody).then(function (resp) {
+        queryUrl = self.queryurl + '/' + resp.jobReference.jobId;
+        next();
+      }).catch(next);
+    }
+    self.get(queryUrl, {
+      maxResults: maxResults,
+      pageToken: pageToken
+    }).then(function (resp) {
+      pageToken = resp.pageToken;
+      fixRows(resp.schema, resp.rows).forEach(function (row) {
+        stream.push(row);
+      });
+      if (!pageToken) {
+        stream.push(null);
+      }
+      next();
+    }).catch(next);
   });
 };
