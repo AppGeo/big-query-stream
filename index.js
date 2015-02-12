@@ -163,7 +163,7 @@ function fixRows(schema, rows) {
   });
 }
 BigQuery.prototype.query = function (query) {
-  var pageToken;
+  var pageToken, queryUrl;
   var maxResults = 100;
   var initialBody = {
     configuration: {
