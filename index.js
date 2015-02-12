@@ -9,7 +9,6 @@ var scope = 'https://www.googleapis.com/auth/bigquery';
 var rawRequest = Promise.promisify(require('request'));
 var noms = require('noms').obj;
 var uuid = require('node-uuid');
-var LRU = require('lru-cache');
 module.exports = BigQuery;
 inherits(BigQuery, Writable);
 function BigQuery(key, email, project, dataset, table) {
@@ -27,10 +26,6 @@ function BigQuery(key, email, project, dataset, table) {
     projectId: project,
     datasetId: dataset
   };
-  this._cache = new LRU({
-    maxAge: 1000 * 60 * 60 * 6, // 18 hours
-    max: 1000
-  });
   this.queue = new Deque();
 }
 BigQuery.prototype._request = function (opts) {
@@ -179,14 +174,12 @@ BigQuery.prototype.query = function (query) {
       }
     }
   };
-  var queryUrl = this._cache.get(query);
   var self = this;
   return noms(function (next) {
     var stream = this;
     if (!queryUrl) {
       return self.post(self.insertUrl, initialBody).then(function (resp) {
         queryUrl = self.queryurl + '/' + resp.jobReference.jobId;
-        self._cache.set(query, queryUrl);
         next();
       }).catch(next);
     }
