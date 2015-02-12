@@ -13,6 +13,7 @@
     "double-ended-queue": "^2.1.0-0",
     "google-auth2-service-account": "0.0.3",
     "inherits": "^2.0.1",
+    "lru-cache": "^2.5.0",
     "node-uuid": "^1.4.2",
     "noms": "0.0.0",
     "readable-stream": "^1.0.33",
