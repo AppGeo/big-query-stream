@@ -11,7 +11,7 @@
   "dependencies": {
     "bluebird": "^2.5.3",
     "double-ended-queue": "^2.1.0-0",
-    "google-auth2-service-account": "0.0.3",
+    "google-auth2-service-account": "^0.0.3",
     "inherits": "^2.0.1",
     "node-uuid": "^1.4.2",
     "noms": "0.0.0",
