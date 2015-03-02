@@ -1,3 +1,4 @@
+'use strict';
 var Promise = require('bluebird');
 var inherits = require('inherits');
 var Writable = require('readable-stream').Writable;
@@ -19,6 +20,14 @@ function BigQuery(key, email, project, dataset, table) {
     this.key = readFile(key);
   }
   this.iss = email;
+  this.project = project;
+  this.dataset = dataset;
+  this.table = table;
+  this.datasetcreateurl = 'https://www.googleapis.com/bigquery/v2/projects/' + project + '/datasets';
+  this.dataseturl = 'https://www.googleapis.com/bigquery/v2/projects/' + project + '/datasets/' + dataset;
+  this.createurl = 'https://www.googleapis.com/bigquery/v2/projects/' + project + '/datasets/' + dataset + '/tables';
+
+  this.checkurl = 'https://www.googleapis.com/bigquery/v2/projects/' + project + '/datasets/' + dataset + '/tables/' + table;
   this.baseurl = 'https://www.googleapis.com/bigquery/v2/projects/' + project + '/datasets/' + dataset + '/tables/' + table + '/insertAll';
   this.insertUrl = 'https://www.googleapis.com/bigquery/v2/projects/' + project + '/jobs';
   this.queryurl = 'https://www.googleapis.com/bigquery/v2/projects/' + project + '/queries';
@@ -117,7 +126,7 @@ BigQuery.prototype.get = function (url, body) {
   var opts = {
     url: url,
     qs: body,
-    json:true
+    json: true
   };
   return self.request(opts);
 };
@@ -162,6 +171,54 @@ function fixRows(schema, rows) {
     return out;
   });
 }
+BigQuery.prototype.maybeCreateTable = function (schema) {
+  var self = this;
+  return this.maybeCreateDataset().then(function () {
+    return self.checkTable();
+  }).catch(function (e) {
+    if (e.code === 404) {
+      return self.createTable(schema);
+    }
+    throw e;
+  });
+};
+
+BigQuery.prototype.createTable = function (schema) {
+  var data = {
+    schema: {
+      fields: []
+    },
+    tableReference: {
+      datasetId: this.dataset,
+      projectId: this.project,
+      tableId: this.table
+    }
+  };
+  Object.keys(schema).forEach(function (key) {
+    data.schema.fields.push({
+      name: key,
+      type: schema[key]
+    });
+  });
+  return this.post(this.createurl, data);
+};
+BigQuery.prototype.checkTable = function () {
+  return this.get(this.checkurl);
+};
+BigQuery.prototype.maybeCreateDataset = function () {
+  var self = this;
+  return this.get(this.dataseturl).catch(function (e){
+    if (e.code === 404) {
+      return self.post(self.datasetcreateurl, {
+        datasetReference: {
+          projectId: self.project,
+          datasetId: self.dataset
+        }
+      });
+    }
+    throw e;
+  });
+};
 BigQuery.prototype.query = function (query) {
   var pageToken, queryUrl;
   var maxResults = 100;
@@ -188,6 +245,9 @@ BigQuery.prototype.query = function (query) {
       pageToken: pageToken
     }).then(function (resp) {
       pageToken = resp.pageToken;
+      if (!resp.rows) {
+        return stream.push(null);
+      }
       fixRows(resp.schema, resp.rows).forEach(function (row) {
         stream.push(row);
       });
