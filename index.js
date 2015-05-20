@@ -68,7 +68,11 @@ BigQuery.prototype.createRequest = function (opts) {
       };
       return self._request(opts);
     }).catch(function (err) {
+      err = err || {};
       if (tries++ > 5 || [401, 403].indexOf(err.code) === -1 || self.stopOnError) {
+        if (err.stack) {
+          throw err;
+        }
         var error = new Error(err.message);
         error.code = err.code;
         error.errors = err.errors;
@@ -153,8 +157,8 @@ BigQuery.prototype.insert = function (data) {
     if (!resp.insertErrors || !resp.insertErrors.length) {
       return;
     }
-    return self.insert(resp.insertErrors.map(function (error) {
-      return data[error.index];
+    return self.insert(resp.insertErrors.map(function (error, i) {
+      return data[error.index || i];
     }));
   });
 };
