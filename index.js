@@ -70,7 +70,7 @@ BigQuery.prototype.createRequest = function (opts) {
     }).catch(function (err) {
       err = err || {};
       if (tries++ > 5 || [401, 403].indexOf(err.code) === -1 || self.stopOnError) {
-        if (err.stack) {
+        if (err) {
           throw err;
         }
         var error = new Error(err.message);
@@ -151,11 +151,11 @@ BigQuery.prototype._write = function (data, _, next) {
 BigQuery.prototype.insert = function (data) {
   var self = this;
   return this.post(this.baseurl, {
-    kind: "bigquery#tableDataInsertAllRequest",
+    kind: 'bigquery#tableDataInsertAllRequest',
     rows: data
   }).then(function (resp) {
     if (!resp.insertErrors || !resp.insertErrors.length) {
-      return;
+      return false;
     }
     return self.insert(resp.insertErrors.map(function (error, i) {
       return data[error.index || i];
