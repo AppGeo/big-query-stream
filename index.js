@@ -227,27 +227,28 @@ BigQuery.prototype.query = function (query) {
   var pageToken, queryUrl;
   var maxResults = 100;
   var initialBody = {
-    configuration: {
-      query: {
-        defaultDataset: this.defaultDataset,
-        query: query,
-        useQueryCache: true
-      }
-    }
+      defaultDataset: this.defaultDataset,
+      query: query,
+      useQueryCache: true,
+      timeoutMs: 110000,
+      maxResults: maxResults
   };
   var self = this;
   return noms(function (next) {
     var stream = this;
+    var promise;
     if (!queryUrl) {
-      return self.post(self.insertUrl, initialBody).then(function (resp) {
+      promise = self.post(self.queryurl, initialBody).then(function (resp) {
         queryUrl = self.queryurl + '/' + resp.jobReference.jobId;
-        next();
-      }).catch(next);
+        return resp;
+      });
+    } else {
+      promise = self.get(queryUrl, {
+        maxResults: maxResults,
+        pageToken: pageToken
+      });
     }
-    self.get(queryUrl, {
-      maxResults: maxResults,
-      pageToken: pageToken
-    }).then(function (resp) {
+    promise.then(function (resp) {
       pageToken = resp.pageToken;
       if (!resp.rows) {
         return stream.push(null);
