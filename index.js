@@ -55,12 +55,14 @@ BigQuery.prototype.request = function (opts) {
     });
     return resolver.promise;
   }
+  console.log('request');
   return this.createRequest(opts);
 };
 BigQuery.prototype.createRequest = function (opts) {
   var self = this;
   this.inProgress = true;
   var tries = 1;
+  console.log('create request');
   function attemptDownload(){
     return self.auth().then(function (auth) {
       opts.headers = {
@@ -68,6 +70,8 @@ BigQuery.prototype.createRequest = function (opts) {
       };
       return self._request(opts);
     }).catch(function (err) {
+      console.log('err', err);
+      console.log('tries', tries);
       err = err || {};
       if (tries++ > 5 || [401, 403].indexOf(err.code) === -1 || self.stopOnError) {
         if (err) {
@@ -79,6 +83,7 @@ BigQuery.prototype.createRequest = function (opts) {
         throw error;
       }
       return Promise.delay(500 << tries).then(function () {
+        console.log('trying again');
         return attemptDownload();
       });
     });
@@ -111,6 +116,7 @@ BigQuery.prototype.auth = function () {
         self.token = null;
         self.timeout = null;
       }, 5 * 60 * 1000);
+      self.timeout.unref();
       return token;
     });
   });
@@ -123,6 +129,7 @@ BigQuery.prototype.post = function (url, body) {
     json: true,
     method: 'POST'
   };
+  console.log('post', url);
   return self.request(opts);
 };
 BigQuery.prototype.get = function (url, body) {
@@ -135,9 +142,12 @@ BigQuery.prototype.get = function (url, body) {
   return self.request(opts);
 };
 BigQuery.prototype._write = function (data, _, next) {
+  console.log('write');
   if (!Array.isArray(data)) {
+    console.log('not arrray');
     data = [data];
   }
+  console.log('array', Array.isArray(data));
   return this.insert(data.map(function (row) {
       return {
         insertId: uuid.v4(),
@@ -149,14 +159,18 @@ BigQuery.prototype._write = function (data, _, next) {
   }, next);
 };
 BigQuery.prototype.insert = function (data) {
+  console.log('array insert', Array.isArray(data));
   var self = this;
+  fs.writeFileSync(__dirname + '/data' + Math.random() + '.json', JSON.stringify(data, false, 2));
   return this.post(this.baseurl, {
     kind: 'bigquery#tableDataInsertAllRequest',
     rows: data
   }).then(function (resp) {
+    console.log('after insert', JSON.stringify(resp, false, 2));
     if (!resp.insertErrors || !resp.insertErrors.length) {
       return false;
     }
+    process.exit();
     return self.insert(resp.insertErrors.map(function (error, i) {
       return data[error.index || i];
     }));
