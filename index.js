@@ -151,7 +151,6 @@ BigQuery.prototype._write = function (data, _, next) {
 };
 BigQuery.prototype.insert = function (data) {
   var self = this;
-  fs.writeFileSync(__dirname + '/data' + Math.random() + '.json', JSON.stringify(data, false, 2));
   return this.post(this.baseurl, {
     kind: 'bigquery#tableDataInsertAllRequest',
     rows: data
@@ -159,7 +158,6 @@ BigQuery.prototype.insert = function (data) {
     if (!resp.insertErrors || !resp.insertErrors.length) {
       return false;
     }
-    process.exit();
     return self.insert(resp.insertErrors.map(function (error, i) {
       return data[error.index || i];
     }));
