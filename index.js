@@ -10,6 +10,7 @@ var scope = 'https://www.googleapis.com/auth/bigquery';
 var rawRequest = Promise.promisify(require('request'));
 var noms = require('noms').obj;
 var uuid = require('node-uuid');
+var debug = require('debug')('big-query')
 module.exports = BigQuery;
 inherits(BigQuery, Writable);
 function BigQuery(key, email, project, dataset, table) {
@@ -61,6 +62,7 @@ BigQuery.prototype.createRequest = function (opts) {
   var self = this;
   this.inProgress = true;
   var tries = 1;
+  debug('creating request');
   function attemptDownload(){
     return self.auth().then(function (auth) {
       opts.headers = {
@@ -69,15 +71,12 @@ BigQuery.prototype.createRequest = function (opts) {
       return self._request(opts);
     }).catch(function (err) {
       err = err || {};
-      if (tries++ > 5 || [401, 403].indexOf(err.code) === -1 || self.stopOnError) {
+      if (tries++ > 2 || [401, 403].indexOf(err.code) === -1 || self.stopOnError) {
         if (err) {
           throw err;
         }
-        var error = new Error(err.message);
-        error.code = err.code;
-        error.errors = err.errors;
-        throw error;
       }
+      debug('tries: ' + tries);
       return Promise.delay(500 << tries).then(function () {
         return attemptDownload();
       });
