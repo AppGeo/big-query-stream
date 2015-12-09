@@ -70,13 +70,12 @@ BigQuery.prototype.createRequest = function (opts) {
       };
       return self._request(opts);
     }).catch(function (err) {
-      err = err || {};
+      err = err || new Error('unknown error');
       if (tries++ > 2 || [401, 403].indexOf(err.code) === -1 || self.stopOnError) {
-        if (err) {
-          throw err;
-        }
+        throw err;
       }
       debug('tries: ' + tries);
+      debug(err.stack || err.message || JSON.stringify(err));
       return Promise.delay(500 << tries).then(function () {
         return attemptDownload();
       });
