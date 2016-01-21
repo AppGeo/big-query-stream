@@ -62,7 +62,6 @@ BigQuery.prototype.createRequest = function (opts) {
   var self = this;
   this.inProgress = true;
   var tries = 1;
-  debug('creating request');
   function attemptDownload(){
     return self.auth().then(function (auth) {
       opts.headers = {
@@ -138,12 +137,11 @@ BigQuery.prototype._write = function (data, _, next) {
     data = [data];
   }
   return this.insert(data.map(function (row) {
-      return {
-        insertId: uuid.v4(),
-        json: row
-      };
-    })
-  ).then(function () {
+    return {
+      insertId: uuid.v4(),
+      json: row
+    };
+  })).then(function () {
     next();
   }, next);
 };
@@ -222,43 +220,131 @@ BigQuery.prototype.maybeCreateDataset = function () {
     throw e;
   });
 };
-BigQuery.prototype.query = function (query) {
-  var pageToken, queryUrl;
-  var maxResults = 100;
+var NEXT = {};
+BigQuery.prototype.query = function (query, opts) {
+  var pageToken, queryUrl, progressUrl, schema, out;
+  if (typeof opts === 'string') {
+    opts = {
+      jobid: opts
+    };
+  }
+  opts = opts || {};
+  console.log(opts);
+  var jobId = opts.jobid;
+  var destTableRaw = opts.table;
+  var destDataset = opts.dataSet || this.dataset;
   var initialBody = {
-      defaultDataset: this.defaultDataset,
-      query: query,
-      useQueryCache: true,
-      timeoutMs: 110000,
-      maxResults: maxResults
+    configuration: {
+      query: {
+        defaultDataset: this.defaultDataset,
+        query: query
+      }
+    }
   };
   var self = this;
-  return noms(function (next) {
-    var stream = this;
-    var promise;
+  var time = 0;
+  function dealWithTable(destTable) {
+    var metaUrl = self.datasetcreateurl + '/' + destTable.datasetId + '/tables/' + destTable.tableId;
+    queryUrl = metaUrl + '/data';
+    return Promise.all([
+      self.get(metaUrl),
+      self.get(queryUrl)
+    ]).then(function (resp) {
+      out.emit('tablemeta', resp[0]);
+      schema = resp[0].schema;
+      return resp[1];
+    }, function () {
+      if (jobId) {
+        debug('table nolonger valid');
+        jobId = null;
+        queryUrl = null;
+        return NEXT;
+      } if (destTableRaw) {
+        debug(`can not find perminent table ${destTableRaw}, creating one`);
+        initialBody.configuration.query.destinationTable = destTable;
+        destTableRaw = null;
+        queryUrl = null;
+        return NEXT;
+      } else {
+        throw e;
+      }
+    })
+  }
+  function pollTable() {
+    debug('polling try #' + (time + 1));
+    return self.get(progressUrl).then(function (resp) {
+      time++;
+      if (resp.status.state === 'DONE') {
+        debug('got finished job');
+        var destTable = resp.configuration.query.destinationTable;
+        out.emit('jobinfo', resp);
+        out.emit('tableinfo', destTable);
+        return dealWithTable(destTable);
+      } else {
+        if (time < 4) {
+          return Promise.delay(50).then(pollTable);
+        }
+        if (time < 8) {
+          return Promise.delay(200).then(pollTable);
+        }
+        return Promise.delay(2000).then(pollTable);
+      }
+    }, function (e) {
+      if (jobId) {
+        debug('job id nolonger valid');
+        jobId = null;
+        return NEXT;
+      } else {
+        throw e;
+      }
+    }
+  );
+  }
+  function getRequest(stream) {
     if (!queryUrl) {
-      promise = self.post(self.queryurl, initialBody).then(function (resp) {
-        queryUrl = self.queryurl + '/' + resp.jobReference.jobId;
-        return resp;
-      });
+      if (jobId) {
+        console.log('job id');
+        progressUrl = self.insertUrl + '/' + jobId;
+        return pollTable();
+      } else if (destTableRaw) {
+        console.log('dest table');
+        return dealWithTable({
+          projectId: self.project,
+          datasetId: destDataset,
+          tableId: destTableRaw
+        });
+      } else {
+        debug('inserting query');
+        return self.post(self.insertUrl, initialBody).then(function (resp) {
+          stream.emit('jobid', resp.jobReference.jobId)
+          progressUrl = self.insertUrl + '/' + resp.jobReference.jobId;
+          return pollTable();
+        });
+      }
     } else {
-      promise = self.get(queryUrl, {
-        maxResults: maxResults,
+      return self.get(queryUrl, {
         pageToken: pageToken
       });
     }
-    promise.then(function (resp) {
+  }
+  out = noms(function (next) {
+
+    getRequest(this).then(resp => {
+      if (resp === NEXT) {
+        return next();
+      }
       pageToken = resp.pageToken;
       if (!resp.rows) {
-        return stream.push(null);
+        return this.push(null);
       }
-      fixRows(resp.schema, resp.rows).forEach(function (row) {
-        stream.push(row);
+      fixRows(schema, resp.rows).forEach(row => {
+        this.push(row);
       });
       if (!pageToken) {
-        stream.push(null);
+        this.push(null);
       }
       next();
     }).catch(next);
   });
+  return out;
 };
