@@ -229,7 +229,6 @@ BigQuery.prototype.query = function (query, opts) {
     };
   }
   opts = opts || {};
-  console.log(opts);
   var jobId = opts.jobid;
   var destTableRaw = opts.table;
   var destDataset = opts.dataSet || this.dataset;
@@ -303,11 +302,9 @@ BigQuery.prototype.query = function (query, opts) {
   function getRequest(stream) {
     if (!queryUrl) {
       if (jobId) {
-        console.log('job id');
         progressUrl = self.insertUrl + '/' + jobId;
         return pollTable();
       } else if (destTableRaw) {
-        console.log('dest table');
         return dealWithTable({
           projectId: self.project,
           datasetId: destDataset,
