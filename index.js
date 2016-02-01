@@ -323,7 +323,7 @@ Query.prototype.dealWithTable = function dealWithTable(destTable) {
     this.out.emit('tablemeta', resp[0]);
     this.schema = resp[0].schema.fields;
     return this.handleOutput(resp[1]);
-  }, () => {
+  }, e => {
     if (this.jobId) {
       debug('table nolonger valid');
       this.jobId = null;
