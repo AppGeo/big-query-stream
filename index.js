@@ -350,6 +350,9 @@ Query.prototype.pollTable = function pollTable() {
       var destTable = resp.configuration.query.destinationTable;
       this.out.emit('jobinfo', resp);
       this.out.emit('tableinfo', destTable);
+      if (resp.status.errorResult) {
+        return null;
+      }
       return this.dealWithTable(destTable);
     } else {
       if (this.time < 4) {
