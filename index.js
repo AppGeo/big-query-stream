@@ -265,7 +265,9 @@ BigQuery.prototype.query = function (query, opts) {
   opts.defaultDataset = this.defaultDataset;
 
   var queryObj = new Query(this, query, opts);
-
+  if (opts.destinationTable) {
+    return queryObj.getRequest();
+  }
   var out = noms(function (next) {
 
     queryObj.getRequest().then(rows => {
@@ -299,6 +301,18 @@ function Query(bq, query, opts, ee) {
       }
     }
   };
+  if (opts.destinationTable) {
+    this.initialBody.configuration.query.destinationTable = opts.destinationTable;
+  }
+  if (opts.createDisposition) {
+    this.initialBody.configuration.query.createDisposition = opts.createDisposition;
+  }
+  if (opts.writeDisposition) {
+    this.initialBody.configuration.query.writeDisposition = opts.writeDisposition;
+  }
+  if (opts.userDefinedFunctionResources) {
+    this.initialBody.configuration.query.userDefinedFunctionResources = opts.userDefinedFunctionResources;
+  }
   this.queryUrl = this.progressUrl = this.totalRows = this.schema = null;
   this.time = 0;
   this.pageToken = null;
