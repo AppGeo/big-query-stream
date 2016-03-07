@@ -291,7 +291,7 @@ function Query(bq, query, opts, ee) {
   this.jobId = opts.jobid;
   this.destTableRaw = opts.table;
   this.noCreate = opts.noCreate;
-  this.destDataset = opts.dataSet;
+  this.destDataset = opts.dataset;
   this.maxResults = opts.maxResults;
   this.initialBody = {
     configuration: {
