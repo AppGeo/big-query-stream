@@ -266,6 +266,9 @@ BigQuery.prototype.query = function (query, opts) {
 
   var queryObj = new Query(this, query, opts);
   if (opts.destinationTable) {
+    queryObj.out.on('jobinfo', function (e) {
+      debug(e);
+    })
     return queryObj.getRequest();
   }
   var out = noms(function (next) {
@@ -312,6 +315,15 @@ function Query(bq, query, opts, ee) {
   }
   if (opts.userDefinedFunctionResources) {
     this.initialBody.configuration.query.userDefinedFunctionResources = opts.userDefinedFunctionResources;
+  }
+  if (opts.maximumBillingTier) {
+    this.initialBody.configuration.query.maximumBillingTier = opts.maximumBillingTier;
+  }
+  if (typeof opts.flattenResults === 'boolean') {
+    this.initialBody.configuration.query.flattenResults = opts.flattenResults;
+  }
+  if (opts.allowLargeResults) {
+    this.initialBody.configuration.query.allowLargeResults = opts.allowLargeResults;
   }
   this.queryUrl = this.progressUrl = this.totalRows = this.schema = null;
   this.time = 0;
