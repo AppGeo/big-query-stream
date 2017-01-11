@@ -9,7 +9,7 @@ var auth = Promise.promisify(require('google-auth2-service-account').auth);
 var scope = 'https://www.googleapis.com/auth/bigquery';
 var rawRequest = Promise.promisify(require('request'));
 var noms = require('noms').obj;
-var uuid = require('node-uuid');
+var uuid = require('uuid');
 var debug = require('debug')('big-query')
 var EE = require('events');
 module.exports = BigQuery;
@@ -41,7 +41,7 @@ function BigQuery(key, email, project, dataset, table) {
 }
 BigQuery.prototype._request = function (opts) {
   return rawRequest(opts).then(function (resp) {
-    resp = resp[1];
+    resp = resp.body;
     if (resp && resp.error) {
       throw resp.error;
     }
@@ -254,7 +254,6 @@ BigQuery.prototype.pagedQuery = function (query, opts) {
   });
 }
 BigQuery.prototype.query = function (query, opts) {
-  var pageToken;
   if (typeof opts === 'string') {
     opts = {
       jobid: opts
@@ -356,7 +355,7 @@ Query.prototype.dealWithTable = function dealWithTable(destTable) {
       this.queryUrl = null;
       return this.getRequest();
     } if (this.destTableRaw && !this.noCreate) {
-      debug(`can not find perminent table ${destTableRaw}, creating one`);
+      debug(`can not find perminent table ${this.destTableRaw}, creating one`);
       this.initialBody.configuration.query.destinationTable = destTable;
       this.destTableRaw = null;
       this.queryUrl = null;

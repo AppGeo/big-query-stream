@@ -9,15 +9,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "bluebird": "^2.5.3",
+    "bluebird": "^3.0.0",
     "debug": "^2.2.0",
     "double-ended-queue": "^2.1.0-0",
     "google-auth2-service-account": "^0.0.5",
     "inherits": "^2.0.1",
-    "node-uuid": "^1.4.2",
     "noms": "0.0.0",
-    "readable-stream": "^1.0.33",
-    "request": "^2.51.0"
+    "readable-stream": "^2.0.0",
+    "request": "^2.51.0",
+    "uuid": "^3.0.1"
   },
   "repository": {
     "type": "git",
