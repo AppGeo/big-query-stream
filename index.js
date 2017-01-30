@@ -122,7 +122,7 @@ BigQuery.prototype.auth = function () {
         self.token = null;
         self.timeout = null;
       }, 5 * 60 * 1000);
-      self.timeout.unref();
+      self.timeout && typeof self.timeout.unref === 'function' && self.timeout.unref();
       return token;
     });
   });
